@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FORJA · biblioteca MALI</title>
+<style>
+  :root{
+    --bg:#16170f; --panel:#1f2017; --line:#33352a;
+    --ink:#d8d6c4; --ink-dim:#8a8c78;
+    --musgo:#8fa676; --musgo-dim:#5c6b4b; --naranja:#b06a36;
+    --mono:"Fira Code", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg); color:var(--ink); font-family:var(--mono); font-size:12px; line-height:1.5}
+  a{color:var(--musgo); text-decoration:none}
+  a:hover{text-decoration:underline}
+  header{padding:18px 22px 12px; border-bottom:1px solid var(--line)}
+  header h1{margin:0; font-size:13px; font-weight:600; letter-spacing:.18em; cursor:pointer; display:inline-block}
+  header h1:hover{color:var(--musgo)}
+  header p{margin:4px 0 0; color:var(--ink-dim); font-size:11px}
+
+  #filtros{display:flex; gap:10px; flex-wrap:wrap; align-items:end; padding:12px 22px; border-bottom:1px solid var(--line)}
+  .f{display:flex; flex-direction:column; gap:3px}
+  .f span{color:var(--ink-dim); font-size:10px}
+  .f input, .f select{
+    background:#12130c; color:var(--ink); border:1px solid var(--line); border-radius:2px;
+    padding:5px 7px; font-family:var(--mono); font-size:11px;
+  }
+  .f input:focus, .f select:focus{outline:1px solid var(--musgo); border-color:var(--musgo)}
+  #f-q{width:230px} #f-autor{width:170px} #f-tema{width:150px} #f-ed{width:150px}
+  .f input[type=number]{width:70px}
+  #limpiar{
+    font-family:var(--mono); font-size:11px; padding:6px 12px; cursor:pointer; border-radius:2px;
+    background:#12130c; color:var(--ink-dim); border:1px solid var(--line);
+  }
+  #limpiar:hover{border-color:var(--naranja); color:var(--naranja)}
+
+  #barra{display:flex; gap:14px; flex-wrap:wrap; align-items:center; padding:10px 22px; border-bottom:1px solid var(--line); color:var(--ink-dim); font-size:11px}
+  #barra button{
+    font-family:var(--mono); font-size:11px; padding:4px 10px; cursor:pointer; border-radius:2px;
+    background:#12130c; color:var(--ink); border:1px solid var(--line);
+  }
+  #barra button:hover:not(:disabled){border-color:var(--musgo); color:var(--musgo)}
+  #barra button:disabled{opacity:.35; cursor:default}
+  #csv{background:var(--musgo-dim); border-color:var(--musgo-dim); color:#0e0f08; font-weight:600}
+  #csv:hover{background:var(--musgo); border-color:var(--musgo); color:#0e0f08 !important}
+  #nsel{color:var(--musgo)}
+  .sep{flex:1}
+
+  #lista{padding:4px 22px 30px}
+  .cab, .reg{
+    display:grid; grid-template-columns:22px 5ch minmax(0,3fr) minmax(0,2fr) 11ch; gap:10px;
+    padding:5px 0; border-bottom:1px solid #24261c; align-items:baseline;
+  }
+  .cab{color:var(--ink-dim); font-size:10px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg)}
+  .reg .an{color:var(--ink-dim)}
+  .reg .ty{color:var(--ink-dim); text-align:right; font-size:10px}
+  .reg .t{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .reg .au{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink)}
+  .reg input{accent-color:var(--musgo)}
+  .reg.sel{background:#1d1f14}
+  @media (max-width:700px){ .cab, .reg{grid-template-columns:22px 5ch 1fr} .au,.ty{display:none} }
+  footer{padding:14px 22px; border-top:1px solid var(--line); color:var(--ink-dim); font-size:10px}
+</style>
+</head>
+<body>
+  <header>
+    <h1 id="titulo">FORJA · BIBLIOTECA MALI</h1>
+    <p id="resumen">cargando…</p>
+  </header>
+
+  <div id="filtros">
+    <label class="f"><span>búsqueda (título · autor · tema · editorial)</span>
+      <input id="f-q" type="search" placeholder="texto libre…"></label>
+    <label class="f"><span>autor</span>
+      <input id="f-autor" type="search" list="dl-autor" placeholder="contiene…"><datalist id="dl-autor"></datalist></label>
+    <label class="f"><span>tema</span>
+      <input id="f-tema" type="search" list="dl-tema" placeholder="contiene…"><datalist id="dl-tema"></datalist></label>
+    <label class="f"><span>editorial</span>
+      <input id="f-ed" type="search" list="dl-ed" placeholder="contiene…"><datalist id="dl-ed"></datalist></label>
+    <label class="f"><span>categoría</span><select id="f-cat"><option value="">todas</option></select></label>
+    <label class="f"><span>tipo</span><select id="f-tipo"><option value="">todos</option></select></label>
+    <label class="f"><span>año desde</span><input id="f-a0" type="number" min="1500" max="2030"></label>
+    <label class="f"><span>hasta</span><input id="f-a1" type="number" min="1500" max="2030"></label>
+    <button id="limpiar">limpiar</button>
+  </div>
+
+  <div id="barra">
+    <span id="conteo"></span>
+    <button id="pg-prim">«</button><button id="pg-ant">‹ anterior</button>
+    <span id="pg-info"></span>
+    <button id="pg-sig">siguiente ›</button><button id="pg-ult">»</button>
+    <span class="sep"></span>
+    <button id="sel-pag">seleccionar página</button>
+    <span id="nsel">0 seleccionados</span>
+    <button id="sel-no">limpiar selección</button>
+    <button id="csv">exportar CSV</button>
+  </div>
+
+  <div id="lista"></div>
+
+  <footer>
+    Fuente: biblioteca.mali.pe (Koha, cosecha OAI-PMH, agosto de 2026) · 20.042 registros ·
+    la cosecha no incluye existencias (signaturas); el enlace de cada título abre su ficha en el OPAC
+  </footer>
+
+<script src="datos_biblioteca.js"></script>
+<script>
+'use strict';
+'use strict';
+// ============================================================
+// FORJA · biblioteca MALI — núcleo puro (sin DOM). Testeable.
+// ============================================================
+function normalizarTexto(s) {
+  return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+// índice de búsqueda por registro (una sola vez al cargar)
+function indexar(datos) {
+  for (const r of datos) {
+    r._q = normalizarTexto(r.t + ' ' + r.a + ' ' + r.a2 + ' ' + r.te + ' ' + r.ed);
+    r._a = normalizarTexto(r.a + ' ' + r.a2);
+    r._te = normalizarTexto(r.te);
+    r._ed = normalizarTexto(r.ed);
+  }
+  return datos;
+}
+
+// filtros: {q, autor, tema, editorial, tipo, cat, a0, a1} — opcionales, componen con AND
+function filtrar(datos, f) {
+  const q = normalizarTexto(f.q || '').trim();
+  const au = normalizarTexto(f.autor || '').trim();
+  const te = normalizarTexto(f.tema || '').trim();
+  const ed = normalizarTexto(f.editorial || '').trim();
+  const a0 = f.a0 ? +f.a0 : null, a1 = f.a1 ? +f.a1 : null;
+  return datos.filter(r =>
+    (!q  || r._q.includes(q)) &&
+    (!au || r._a.includes(au)) &&
+    (!te || r._te.includes(te)) &&
+    (!ed || r._ed.includes(ed)) &&
+    (!f.tipo || r.ty === f.tipo) &&
+    (!f.cat || r.ca === f.cat) &&
+    (a0 === null || (r.an !== null && r.an >= a0)) &&
+    (a1 === null || (r.an !== null && r.an <= a1)));
+}
+
+function paginar(filtrados, pagina, porPagina) {
+  const total = Math.max(1, Math.ceil(filtrados.length / porPagina));
+  const p = Math.min(Math.max(1, pagina), total);
+  return { pagina: p, paginas: total,
+           filas: filtrados.slice((p - 1) * porPagina, p * porPagina) };
+}
+
+function csvRegistros(regs) {
+  const esc = (v) => {
+    const s = String(v ?? '');
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const cab = ['biblionumber','titulo','autor','autores_sec','anio','tipo','categoria',
+               'categoria_fuente','editorial','lugar','temas','isbn_issn','url'];
+  const filas = regs.map(r => [r.b, r.t, r.a, r.a2, r.an ?? '', r.ty, r.ca, r.cf, r.ed, r.lu, r.te, r.sn,
+    'https://biblioteca.mali.pe/cgi-bin/koha/opac-detail.pl?biblionumber=' + r.b].map(esc).join(','));
+  return cab.join(',') + '\n' + filas.join('\n') + '\n';
+}
+
+// listas de sugerencias (para datalist): valores más frecuentes de un campo
+function sugerencias(datos, campo, n) {
+  const c = new Map();
+  for (const r of datos) {
+    const v = campo === 'a' ? r.a : r[campo];
+    if (v) c.set(v, (c.get(v) || 0) + 1);
+  }
+  return Array.from(c.entries()).sort((x, y) => y[1] - x[1]).slice(0, n).map(e => e[0]);
+}
+(function(){
+  const $ = (id) => document.getElementById(id);
+  if (!Array.isArray(typeof DATOS !== 'undefined' ? DATOS : null) || !DATOS.length || !('b' in DATOS[0]) || !('ca' in DATOS[0])){
+    $('resumen').textContent = 'datos_biblioteca.js no coincide con esta versión (falta la categoría): usa el generado por la Celda 6 y sube ambos archivos.';
+    $('resumen').style.color = '#c08a5a';
+    return;
+  }
+  indexar(DATOS);
+  const POR_PAGINA = 500;
+  const est = { pagina: 1 };
+  const seleccion = new Set();
+  let filtrados = DATOS;
+
+  // ---------- filtros ----------
+  const campos = { q:'f-q', autor:'f-autor', tema:'f-tema', editorial:'f-ed', tipo:'f-tipo', cat:'f-cat', a0:'f-a0', a1:'f-a1' };
+  function leerFiltros(){
+    const f = {};
+    for (const k in campos) f[k] = $(campos[k]).value;
+    return f;
+  }
+  // poblar tipo y datalists
+  const tipos = new Map(), cats = new Map();
+  for (const r of DATOS){
+    tipos.set(r.ty, (tipos.get(r.ty) || 0) + 1);
+    cats.set(r.ca, (cats.get(r.ca) || 0) + 1);
+  }
+  function poblarSelect(sel, mapa){
+    for (const [v, n] of Array.from(mapa.entries()).sort((a,b)=>b[1]-a[1])){
+      const op = document.createElement('option');
+      op.value = v; op.textContent = v + ' (' + n.toLocaleString('es') + ')';
+      sel.appendChild(op);
+    }
+  }
+  poblarSelect($('f-tipo'), tipos);
+  poblarSelect($('f-cat'), cats);
+  const CAT_CORTA = { 'Libro / monografía':'Libro', 'Catálogo / exposición':'Catálogo',
+    'Documentación (DAP)':'DAP', 'Publicación periódica':'Periódica',
+    'Folleto / impreso menor':'Folleto', 'Audiovisual / multimedia':'AV',
+    'Fondo reservado':'F. reservado' };
+  function poblarDatalist(id, campo, n){
+    const dl = $(id);
+    for (const v of sugerencias(DATOS, campo, n)){
+      const op = document.createElement('option'); op.value = v; dl.appendChild(op);
+    }
+  }
+  poblarDatalist('dl-autor', 'a', 800);
+  poblarDatalist('dl-ed', 'ed', 500);
+  // temas: sugerir temas individuales, no las cadenas unidas
+  (function(){
+    const c = new Map();
+    for (const r of DATOS) for (const t of r.te.split('; ')) if (t) c.set(t, (c.get(t)||0)+1);
+    const dl = $('dl-tema');
+    for (const [v] of Array.from(c.entries()).sort((a,b)=>b[1]-a[1]).slice(0, 800)){
+      const op = document.createElement('option'); op.value = v; dl.appendChild(op);
+    }
+  })();
+
+  let deb;
+  for (const k in campos){
+    $(campos[k]).addEventListener('input', ()=>{
+      clearTimeout(deb);
+      deb = setTimeout(()=>{ est.pagina = 1; refrescar(); }, 200);
+    });
+  }
+  $('limpiar').addEventListener('click', ()=>{
+    for (const k in campos) $(campos[k]).value = '';
+    est.pagina = 1; refrescar();
+  });
+
+  // ---------- render ----------
+  function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  const URL_OPAC = 'https://biblioteca.mali.pe/cgi-bin/koha/opac-detail.pl?biblionumber=';
+
+  function refrescar(){
+    filtrados = filtrar(DATOS, leerFiltros());
+    const { pagina, paginas, filas } = paginar(filtrados, est.pagina, POR_PAGINA);
+    est.pagina = pagina;
+    $('conteo').textContent = filtrados.length.toLocaleString('es') + ' registros';
+    $('pg-info').textContent = 'página ' + pagina + ' / ' + paginas;
+    $('pg-prim').disabled = $('pg-ant').disabled = pagina <= 1;
+    $('pg-sig').disabled = $('pg-ult').disabled = pagina >= paginas;
+
+    const cab = '<div class="cab"><span></span><span>año</span><span>título</span><span>autor</span><span>categoría</span></div>';
+    $('lista').innerHTML = cab + filas.map(r =>
+      '<div class="reg'+(seleccion.has(r.b)?' sel':'')+'" data-b="'+r.b+'">'+
+      '<input type="checkbox"'+(seleccion.has(r.b)?' checked':'')+'>'+
+      '<span class="an">'+(r.an ?? '—')+'</span>'+
+      '<span class="t"><a href="'+URL_OPAC+r.b+'" target="_blank" rel="noopener" title="'+esc(r.te || r.t)+'">'+esc(r.t)+'</a></span>'+
+      '<span class="au">'+esc(r.a || '—')+'</span>'+
+      '<span class="ty" title="'+esc(r.ca+' · vía '+r.cf)+'">'+esc(CAT_CORTA[r.ca] || r.ca)+'</span></div>').join('');
+    $('lista').querySelectorAll('.reg input').forEach(cb => cb.addEventListener('change', (e)=>{
+      const b = +cb.closest('.reg').dataset.b;
+      if (cb.checked) seleccion.add(b); else seleccion.delete(b);
+      cb.closest('.reg').classList.toggle('sel', cb.checked);
+      pintarSel();
+    }));
+    pintarSel();
+  }
+  function pintarSel(){
+    $('nsel').textContent = seleccion.size.toLocaleString('es') + ' seleccionados';
+    $('csv').textContent = seleccion.size
+      ? 'exportar CSV (' + seleccion.size.toLocaleString('es') + ' seleccionados)'
+      : 'exportar CSV (' + filtrados.length.toLocaleString('es') + ' filtrados)';
+  }
+
+  // ---------- paginación ----------
+  function irA(p){ est.pagina = p; refrescar(); window.scrollTo(0, 0); }
+  $('pg-prim').addEventListener('click', ()=> irA(1));
+  $('pg-ant').addEventListener('click', ()=> irA(est.pagina - 1));
+  $('pg-sig').addEventListener('click', ()=> irA(est.pagina + 1));
+  $('pg-ult').addEventListener('click', ()=> irA(1e9));
+
+  // ---------- selección y CSV ----------
+  $('sel-pag').addEventListener('click', ()=>{
+    for (const r of paginar(filtrados, est.pagina, POR_PAGINA).filas) seleccion.add(r.b);
+    refrescar();
+  });
+  $('sel-no').addEventListener('click', ()=>{ seleccion.clear(); refrescar(); });
+  $('csv').addEventListener('click', ()=>{
+    const regs = seleccion.size ? DATOS.filter(r => seleccion.has(r.b)) : filtrados;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\ufeff' + csvRegistros(regs)], {type:'text/csv;charset=utf-8'}));
+    a.download = 'biblioteca_mali_' + (seleccion.size ? 'seleccion' : 'filtrado') + '.csv';
+    a.click(); URL.revokeObjectURL(a.href);
+  });
+
+  // ---------- arranque ----------
+  const conAnio = DATOS.filter(r=>r.an);
+  $('resumen').textContent = DATOS.length.toLocaleString('es') + ' registros · ' +
+    tipos.size + ' tipos de ítem · publicaciones ' +
+    Math.min(...conAnio.map(r=>r.an)) + '–' + Math.max(...conAnio.map(r=>r.an)) +
+    ' · Documentación de Arte Peruano: ' + (tipos.get('ARCHIVO')||0).toLocaleString('es') + ' expedientes';
+  $('titulo').addEventListener('click', ()=> location.reload());
+  refrescar();
+})();
+
+</script>
+</body>
+</html>
